@@ -96,6 +96,9 @@ module FFMPEG
 
           @rotation = if video_stream.key?(:tags) && video_stream[:tags].key?(:rotate)
                         video_stream[:tags][:rotate].to_i
+                      elsif video_stream.key?(:side_data_list)
+                        rotation_data = video_stream[:side_data_list].find { |data| data.key?(:rotation) }
+                        rotation_data ? rotation_data[:rotation].to_i : nil
                       else
                         nil
                       end
