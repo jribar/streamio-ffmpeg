@@ -15,12 +15,14 @@ module FFMPEG
 
     UNSUPPORTED_CODEC_PATTERN = /^Unsupported codec with id (\d+) for input stream (\d+)$/.freeze
 
-    def initialize(path) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+    def initialize(path, no_verify: false) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
       @path = path
 
       if remote?
-        @head = head
-        raise Errno::ENOENT, "the URL '#{path}' does not exist or is not available (response code: #{@head.code})" unless @head.is_a?(Net::HTTPSuccess)
+        if no_verify == false
+          @head = head
+          raise Errno::ENOENT, "the URL '#{path}' does not exist or is not available (response code: #{@head.code})" unless @head.is_a?(Net::HTTPSuccess)
+        end
       else
         raise Errno::ENOENT, "the file '#{path}' does not exist" unless File.exist?(path)
       end
