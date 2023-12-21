@@ -94,14 +94,7 @@ module FFMPEG
 
           @video_stream = "#{video_stream[:codec_name]} (#{video_stream[:profile]}) (#{video_stream[:codec_tag_string]} / #{video_stream[:codec_tag]}), #{colorspace}, #{resolution} [SAR #{sar} DAR #{dar}]"
 
-          @rotation = if video_stream.key?(:tags) && video_stream[:tags].key?(:rotate)
-                        video_stream[:tags][:rotate].to_i
-                      elsif video_stream.key?(:side_data_list)
-                        rotation_data = video_stream[:side_data_list].find { |data| data.key?(:rotation) }
-                        rotation_data ? rotation_data[:rotation].to_i : nil
-                      else
-                        nil
-                      end
+          @rotation = parse_rotation(video_stream)
         end
 
         @audio_streams = audio_streams.map do |stream|
@@ -162,15 +155,13 @@ module FFMPEG
     def width
       return @width if rotation.nil?
 
-      normalized_rotation = rotation % 360
-      normalized_rotation == 180 || normalized_rotation == 0 ? @width : @height
+      rotation == 180 || rotation.zero? ? @width : @height
     end
 
     def height
       return @height if rotation.nil?
 
-      normalized_rotation = rotation % 360
-      normalized_rotation == 180 || normalized_rotation == 0 ? @height : @width
+      rotation == 180 || rotation.zero? ? @height : @width
     end
 
     def resolution
@@ -245,6 +236,15 @@ module FFMPEG
       output[/test/] # Running a regexp on the string throws error if it's not UTF-8
     rescue ArgumentError
       output.force_encoding('ISO-8859-1')
+    end
+
+    def parse_rotation(video_stream)
+      if video_stream.key?(:tags) && video_stream[:tags].key?(:rotate)
+        video_stream[:tags][:rotate].to_i % 360
+      elsif video_stream.key?(:side_data_list)
+        rotation_data = video_stream[:side_data_list].find { |data| data.key?(:rotation) }
+        rotation_data ? rotation_data[:rotation].to_i % 360 : nil
+      end
     end
 
     def head(location = @path, limit = FFMPEG.max_http_redirect_attempts)

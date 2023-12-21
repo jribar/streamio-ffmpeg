@@ -5,7 +5,6 @@ module FFMPEG
   # ffmpeg command line options.
   class EncodingOptions < Hash # rubocop:disable Metrics/ClassLength
     def initialize(options = {})
-      super
       merge!(options)
     end
 

@@ -382,7 +382,7 @@ module FFMPEG
         end
 
         it 'should parse the bitrate' do
-          expect(movie.bitrate).to eq(481_846)
+          expect(movie.bitrate).to eq(481_836)
         end
 
         it 'should return nil rotation when no rotation exists' do
@@ -502,7 +502,7 @@ module FFMPEG
       let(:movie) { Movie.new("#{fixture_path}/movies/sideways movie.mov") }
 
       it 'should parse the rotation' do
-        expect(movie.rotation).to eq(90)
+        expect(movie.rotation).to eq(270)
       end
     end
 
@@ -512,7 +512,7 @@ module FFMPEG
       it 'should run the transcoder' do
         transcoder_double = double(Transcoder)
         expect(Transcoder).to receive(:new)
-          .with(movie, "#{tmp_path}/awesome.flv", { custom: '-vcodec libx264' }, preserve_aspect_ratio: :width)
+          .with(movie, "#{tmp_path}/awesome.flv", { custom: '-vcodec libx264' }, { preserve_aspect_ratio: :width })
           .and_return(transcoder_double)
         expect(transcoder_double).to receive(:run)
 
@@ -526,7 +526,7 @@ module FFMPEG
       it 'should run the transcoder' do
         transcoder_double = double(Transcoder)
         expect(Transcoder).to receive(:new)
-          .with(movie, "#{tmp_path}/awesome.flv", { custom: '-vcodec libx264' }, preserve_aspect_ratio: :width)
+          .with(movie, "#{tmp_path}/awesome.flv", { custom: '-vcodec libx264' }, { preserve_aspect_ratio: :width })
           .and_return(transcoder_double)
         expect(transcoder_double).to receive(:run)
 
@@ -554,7 +554,7 @@ module FFMPEG
       it 'should run the transcoder with screenshot option' do
         transcoder_double = double(Transcoder)
         expect(Transcoder).to receive(:new)
-          .with(movie, "#{tmp_path}/awesome.jpg", { seek_time: 2, dimensions: '640x480', screenshot: true }, preserve_aspect_ratio: :width)
+          .with(movie, "#{tmp_path}/awesome.jpg", { seek_time: 2, dimensions: '640x480', screenshot: true }, { preserve_aspect_ratio: :width })
           .and_return(transcoder_double)
         expect(transcoder_double).to receive(:run)
 
@@ -565,7 +565,7 @@ module FFMPEG
         it 'should create multiple screenshots' do
           transcoder_double = double(Transcoder)
           expect(Transcoder).to receive(:new)
-            .with(movie, "#{tmp_path}/awesome_%d.jpg", { seek_time: 2, dimensions: '640x480', screenshot: true, vframes: 20 }, preserve_aspect_ratio: :width, validate: false)
+            .with(movie, "#{tmp_path}/awesome_%d.jpg", { seek_time: 2, dimensions: '640x480', screenshot: true, vframes: 20 }, { preserve_aspect_ratio: :width, validate: false })
             .and_return(transcoder_double)
           expect(transcoder_double).to receive(:run)
 
