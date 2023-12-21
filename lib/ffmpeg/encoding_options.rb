@@ -3,8 +3,8 @@
 module FFMPEG
   # This class is used to convert a hash of encoding options into an array of
   # ffmpeg command line options.
-  class EncodingOptions < Hash # rubocop:disable Metrics/ClassLength
-    def initialize(options = {})
+  class EncodingOptions < Hash
+    def initialize(options = {}) # rubocop:disable Lint/MissingSuper
       merge!(options)
     end
 

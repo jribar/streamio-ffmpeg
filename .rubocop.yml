@@ -24,3 +24,5 @@ Metrics/BlockLength:
   Enabled: false # TODO
 Metrics/AbcSize:
   Enabled: false # TODO
+Metrics/ClassLength:
+  Enabled: false

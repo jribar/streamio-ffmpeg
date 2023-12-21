@@ -3,7 +3,7 @@
 require 'open3'
 
 module FFMPEG
-  class Transcoder # rubocop:disable Metrics/ClassLength
+  class Transcoder
     attr_reader :command, :input
 
     @@timeout = 30

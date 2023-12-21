@@ -7,7 +7,7 @@ require 'net/http'
 
 module FFMPEG
   # Represents a movie to be processed by ffmpeg
-  class Movie # rubocop:disable Metrics/ClassLength
+  class Movie
     attr_reader :path, :duration, :time, :bitrate, :rotation, :creation_time
     attr_reader :video_stream, :video_codec, :video_bitrate, :colorspace, :sar, :dar, :frame_rate
     attr_reader :audio_streams, :audio_stream, :audio_codec, :audio_bitrate, :audio_sample_rate, :audio_channels, :audio_tags
