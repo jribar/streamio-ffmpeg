@@ -1,7 +1,9 @@
+# frozen_string_literal: true
+
 require 'open3'
 
 module FFMPEG
-  class Transcoder
+  class Transcoder # rubocop:disable Metrics/ClassLength
     attr_reader :command, :input
 
     @@timeout = 30
@@ -31,7 +33,7 @@ module FFMPEG
       if input_options.is_a?(Array)
         iopts += input_options
       else
-        input_options.each { |k, v| iopts += ['-' + k.to_s, v] }
+        input_options.each { |k, v| iopts += ["-#{k}", v] }
       end
 
       @command = [FFMPEG.ffmpeg_binary, '-y', *iopts, '-i', @input, *@raw_options.to_a, @output_file]
@@ -39,12 +41,10 @@ module FFMPEG
 
     def run(&block)
       transcode_movie(&block)
-      if @transcoder_options[:validate]
-        validate_output_file(&block)
-        return encoded
-      else
-        return nil
-      end
+      return nil unless @transcoder_options[:validate]
+
+      validate_output_file(&block)
+      encoded
     end
 
     def encoding_succeeded?
@@ -60,10 +60,11 @@ module FFMPEG
     end
 
     private
+
     # frame= 4855 fps= 46 q=31.0 size=   45306kB time=00:02:42.28 bitrate=2287.0kbits/
     def transcode_movie
       FFMPEG.logger.info("Running transcoding...\n#{command}\n")
-      @output = ""
+      @output = ''
 
       Open3.popen3(*command) do |_stdin, _stdout, stderr, wait_thr|
         begin
@@ -71,7 +72,7 @@ module FFMPEG
           next_line = Proc.new do |line|
             fix_encoding(line)
             @output << line
-            if line.include?("time=")
+            if line.include?('time=')
               if line =~ /time=(\d+):(\d+):(\d+.\d+)/ # ffmpeg 0.8 and above style
                 time = ($1.to_i * 3600) + ($2.to_i * 60) + $3.to_f
               else # better make sure it wont blow up in case of unexpected output
@@ -91,7 +92,7 @@ module FFMPEG
             stderr.each('size=', &next_line)
           end
 
-        @errors << "ffmpeg returned non-zero exit code" unless wait_thr.value.success?
+        @errors << 'ffmpeg returned non-zero exit code' unless wait_thr.value.success?
 
         rescue Timeout::Error => e
           FFMPEG.logger.error "Process hung...\n@command\n#{command}\nOutput\n#{@output}\n"
@@ -101,14 +102,14 @@ module FFMPEG
     end
 
     def validate_output_file(&block)
-      @errors << "no output file created" unless File.exist?(@output_file)
-      @errors << "encoded file is invalid" if encoded.nil? || !encoded.valid?
+      @errors << 'no output file created' unless File.exist?(@output_file)
+      @errors << 'encoded file is invalid' if encoded.nil? || !encoded.valid?
 
       if encoding_succeeded?
-        yield(1.0) if block_given?
+        yield(1.0) if block
         FFMPEG.logger.info "Transcoding of #{input} to #{@output_file} succeeded\n"
       else
-        errors = "Errors: #{@errors.join(", ")}. "
+        errors = "Errors: #{@errors.join(', ')}. "
         FFMPEG.logger.error "Failed encoding...\n#{command}\n\n#{@output}\n#{errors}\n"
         raise Error, "Failed encoding.#{errors}Full output: #{@output}"
       end
@@ -116,16 +117,16 @@ module FFMPEG
 
     def apply_transcoder_options
        # if true runs #validate_output_file
-      @transcoder_options[:validate] = @transcoder_options.fetch(:validate) { true }
+      @transcoder_options[:validate] = @transcoder_options.fetch(:validate, true)
 
       return if @movie.nil? || @movie.calculated_aspect_ratio.nil?
       case @transcoder_options[:preserve_aspect_ratio].to_s
-      when "width"
+      when 'width'
         new_height = @raw_options.width / @movie.calculated_aspect_ratio
         new_height = new_height.ceil.even? ? new_height.ceil : new_height.floor
         new_height += 1 if new_height.odd? # needed if new_height ended up with no decimals in the first place
         @raw_options[:resolution] = "#{@raw_options.width}x#{new_height}"
-      when "height"
+      when 'height'
         new_width = @raw_options.height * @movie.calculated_aspect_ratio
         new_width = new_width.ceil.even? ? new_width.ceil : new_width.floor
         new_width += 1 if new_width.odd?
@@ -136,7 +137,7 @@ module FFMPEG
     def fix_encoding(output)
       output[/test/]
     rescue ArgumentError
-      output.force_encoding("ISO-8859-1")
+      output.force_encoding('ISO-8859-1')
     end
 
     def optimize_screenshot_parameters(options, transcoder_options)
@@ -175,7 +176,7 @@ module FFMPEG
       if input_options.is_a?(Array)
         fi = input_options.find_index('-ss')
         if fi.nil?
-          input_options.concat(['-ss', seek_time])
+          input_options.push('-ss', seek_time)
         else
           input_options[fi + 1] = seek_time
         end

@@ -1,0 +1,26 @@
+require:
+  - rubocop-performance
+#  - rubocop-rspec
+
+inherit_mode:
+  merge:
+    - Exclude
+    - Include
+
+AllCops:
+  TargetRubyVersion: 3.0
+  DisplayCopNames: true
+  DisplayStyleGuide: true
+
+AllCops:
+  NewCops: enable
+Layout/LineLength:
+  Max: 180 # TODO
+Metrics/ModuleLength:
+  Enabled: false # TODO
+Metrics/MethodLength:
+  Enabled: false # TODO
+Metrics/BlockLength:
+  Enabled: false # TODO
+Metrics/AbcSize:
+  Enabled: false # TODO
