@@ -257,11 +257,11 @@ module FFMPEG
           end
 
           it 'should calculate using width and height instead' do
-            expect(movie.calculated_aspect_ratio.to_s[0..14]).to eq('1.7777777777777') # substringed to be 1.9 compatible
+            expect(movie.calculated_aspect_ratio).to eq(1.7777777777777777)
           end
 
           context 'when width/height is flipped' do
-            before { movie.instance_variable_set :@rotation, 90 }
+            before { movie.video_stream.tags[:rotate] = 90 }
             it 'should calculate using width and height instead' do
               expect(movie.calculated_aspect_ratio).to eq(0.5625)
             end
@@ -354,7 +354,7 @@ module FFMPEG
         end
 
         it 'should have correct calculated_pixel_aspect_ratio' do
-          expect(movie.calculated_pixel_aspect_ratio.to_s[0..14]).to eq('1.4222222222222') # substringed to be 1.9 compatible
+          expect(movie.calculated_pixel_aspect_ratio).to eq(1.4222222222222223)
         end
       end
 
@@ -394,15 +394,19 @@ module FFMPEG
         end
 
         it 'should parse video stream information' do
-          expect(movie.video_stream).to eq('h264 (Main) (avc1 / 0x31637661), yuv420p, 640x480 [SAR 1:1 DAR 4:3]')
+          expect(movie.video_stream.overview).to eq('h264 (Main) (avc1 / 0x31637661), yuv420p, 640x480 [SAR 1:1 DAR 4:3]')
         end
 
         it 'should know the video codec' do
           expect(movie.video_codec).to match(/h264/)
         end
 
+        it 'should know the pixel format' do
+          expect(movie.pixel_format).to eq('yuv420p')
+        end
+
         it 'should know the colorspace' do
-          expect(movie.colorspace).to eq('yuv420p')
+          expect(movie.colorspace).to eq('bt709')
         end
 
         it 'should know the resolution' do
@@ -423,7 +427,7 @@ module FFMPEG
         end
 
         it 'should parse audio stream information' do
-          expect(movie.audio_stream).to eq('aac (mp4a / 0x6134706d), 44100 Hz, stereo, fltp, 75832 bit/s')
+          expect(movie.audio_stream.overview).to eq('aac (mp4a / 0x6134706d), 44100 Hz, stereo, fltp, 75832 bit/s')
         end
 
         it 'should know the audio codec' do
@@ -447,7 +451,7 @@ module FFMPEG
         end
 
         it 'should calculate the aspect ratio' do
-          expect(movie.calculated_aspect_ratio.to_s[0..14]).to eq('1.3333333333333') # substringed to be 1.9 compatible
+          expect(movie.calculated_aspect_ratio).to eq(1.3333333333333333)
         end
 
         it 'should know the file size' do
@@ -493,7 +497,7 @@ module FFMPEG
 
         it 'should assign audio_stream to the properties of the first stream' do
           stream_overview = movie.audio_streams[0][:overview]
-          expect(movie.audio_stream).to eq stream_overview
+          expect(movie.audio_stream.overview).to eq stream_overview
         end
       end
     end

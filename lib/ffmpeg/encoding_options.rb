@@ -39,15 +39,11 @@ module FFMPEG
     end
 
     def width
-      self[:resolution].split('x').first.to_i
-    rescue
-      nil
+      self[:resolution] ? self[:resolution].split('x').first.to_i : nil
     end
 
     def height
-      self[:resolution].split('x').last.to_i
-    rescue
-      nil
+      self[:resolution] ? self[:resolution].split('x').last.to_i : nil
     end
 
     private
@@ -63,7 +59,7 @@ module FFMPEG
 
     def calculate_aspect
       width, height = self[:resolution].split('x')
-      width.to_f / height.to_f
+      width.to_f / height.to_i
     end
 
     def calculate_aspect?

@@ -8,37 +8,26 @@ require 'net/http'
 module FFMPEG
   # Represents a movie to be processed by ffmpeg
   class Movie
-    attr_reader :path, :duration, :time, :bitrate, :rotation, :creation_time
-    attr_reader :video_stream, :video_codec, :video_bitrate, :colorspace, :sar, :dar, :frame_rate
-    attr_reader :audio_streams, :audio_stream, :audio_codec, :audio_bitrate, :audio_sample_rate, :audio_channels, :audio_tags
-    attr_reader :container
-    attr_reader :metadata, :format_tags
+    attr_reader :path, :duration, :time, :bitrate, :size, :creation_time,
+                :video_streams, :video_stream,
+                :audio_streams, :audio_stream,
+                :container, :container_long_name, :metadata, :format_tags
 
     UNSUPPORTED_CODEC_PATTERN = /^Unsupported codec with id (\d+) for input stream (\d+)$/.freeze
 
-    def initialize(path)
+    def initialize(path) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
       @path = path
 
       if remote?
         @head = head
-        unless @head.is_a?(Net::HTTPSuccess)
-          raise Errno::ENOENT, "the URL '#{path}' does not exist or is not available (response code: #{@head.code})"
-        end
+        raise Errno::ENOENT, "the URL '#{path}' does not exist or is not available (response code: #{@head.code})" unless @head.is_a?(Net::HTTPSuccess)
       else
         raise Errno::ENOENT, "the file '#{path}' does not exist" unless File.exist?(path)
       end
 
-      @path = path
-
       # ffmpeg will output to stderr
-      command = [FFMPEG.ffprobe_binary, '-i', path, '-print_format', 'json', '-show_format', '-show_streams', '-show_error']
-      std_output = ''
-      std_error = ''
-
-      Open3.popen3(*command) do |stdin, stdout, stderr|
-        std_output = stdout.read unless stdout.nil?
-        std_error = stderr.read unless stderr.nil?
-      end
+      command = [FFMPEG.ffprobe_binary, '-i', @path, '-print_format', 'json', '-show_format', '-show_programs', '-show_streams', '-show_error']
+      std_output, std_error = capture3(*command)
 
       fix_encoding(std_output)
       fix_encoding(std_error)
@@ -49,84 +38,17 @@ module FFMPEG
         raise "Could not parse output from FFProbe:\n#{std_output}"
       end
 
-      if @metadata.key?(:error)
+      parse_format
 
-        @duration = 0
-
-      else
-        video_streams = @metadata[:streams].select { |stream| stream.key?(:codec_type) and stream[:codec_type] == 'video' }
-        audio_streams = @metadata[:streams].select { |stream| stream.key?(:codec_type) and stream[:codec_type] == 'audio' }
-
-        @container = @metadata[:format][:format_name]
-
-        @duration = @metadata[:format][:duration].to_f
-
-        @time = @metadata[:format][:start_time].to_f
-
-        @format_tags = @metadata[:format][:tags]
-
-        @creation_time = if @format_tags&.key?(:creation_time)
-                           begin
-                             Time.parse(@format_tags[:creation_time])
-                           rescue ArgumentError
-                             nil
-                           end
-                         else
-                           nil
-                         end
-
-        @bitrate = @metadata[:format][:bit_rate].to_i
-
-        # TODO: Handle multiple video codecs (is that possible?)
-        video_stream = video_streams.first
-        unless video_stream.nil?
-          @video_codec = video_stream[:codec_name]
-          @colorspace = video_stream[:pix_fmt]
-          @width = video_stream[:width]
-          @height = video_stream[:height]
-          @video_bitrate = video_stream[:bit_rate].to_i
-          @sar = video_stream[:sample_aspect_ratio]
-          @dar = video_stream[:display_aspect_ratio]
-
-          @frame_rate = unless video_stream[:avg_frame_rate] == '0/0'
-                          Rational(video_stream[:avg_frame_rate])
-                        end
-
-          @video_stream = "#{video_stream[:codec_name]} (#{video_stream[:profile]}) (#{video_stream[:codec_tag_string]} / #{video_stream[:codec_tag]}), #{colorspace}, #{resolution} [SAR #{sar} DAR #{dar}]"
-
-          @rotation = parse_rotation(video_stream)
-        end
-
-        @audio_streams = audio_streams.map do |stream|
-          {
-            index: stream[:index],
-            channels: stream[:channels].to_i,
-            codec_name: stream[:codec_name],
-            sample_rate: stream[:sample_rate].to_i,
-            bitrate: stream[:bit_rate].to_i,
-            channel_layout: stream[:channel_layout],
-            tags: stream[:streams],
-            overview: "#{stream[:codec_name]} (#{stream[:codec_tag_string]} / #{stream[:codec_tag]}), #{stream[:sample_rate]} Hz, #{stream[:channel_layout]}, #{stream[:sample_fmt]}, #{stream[:bit_rate]} bit/s"
-          }
-        end
-
-        audio_stream = @audio_streams.first
-        unless audio_stream.nil?
-          @audio_channels = audio_stream[:channels]
-          @audio_codec = audio_stream[:codec_name]
-          @audio_sample_rate = audio_stream[:sample_rate]
-          @audio_bitrate = audio_stream[:bitrate]
-          @audio_channel_layout = audio_stream[:channel_layout]
-          @audio_tags = audio_stream[:audio_tags]
-          @audio_stream = audio_stream[:overview]
-        end
-
+      unless @metadata.key?(:error)
+        parse_video_streams
+        parse_audio_streams
       end
 
       unsupported_stream_ids = unsupported_streams(std_error)
-      nil_or_unsupported = ->(stream) { stream.nil? || unsupported_stream_ids.include?(stream[:index]) }
+      nil_or_unsupported = ->(stream) { stream.nil? || unsupported_stream_ids.include?(stream.index) }
 
-      @invalid = true if nil_or_unsupported.call(video_stream) && nil_or_unsupported.call(audio_stream)
+      @invalid = true if nil_or_unsupported.call(@video_stream) && nil_or_unsupported.call(@audio_stream)
       @invalid = true if @metadata.key?(:error)
       @invalid = true if std_error.include?('could not find codec parameters')
     end
@@ -152,54 +74,6 @@ module FFMPEG
       !remote?
     end
 
-    def width
-      return @width if rotation.nil?
-
-      rotation == 180 || rotation.zero? ? @width : @height
-    end
-
-    def height
-      return @height if rotation.nil?
-
-      rotation == 180 || rotation.zero? ? @height : @width
-    end
-
-    def resolution
-      return if width.nil? || height.nil?
-
-      "#{width}x#{height}"
-    end
-
-    def calculated_aspect_ratio
-      aspect_from_dar || aspect_from_dimensions
-    end
-
-    def calculated_pixel_aspect_ratio
-      aspect_from_sar || 1
-    end
-
-    def size
-      if local?
-        File.size(@path)
-      else
-        @head.content_length
-      end
-    end
-
-    def audio_channel_layout
-      # TODO: Whenever support for ffmpeg/ffprobe 1.2.1 is dropped this is no longer needed
-      @audio_channel_layout || case audio_channels
-                               when 1
-                                 'stereo'
-                               when 2
-                                 'stereo'
-                               when 6
-                                 '5.1'
-                               else
-                                 'unknown'
-                               end
-    end
-
     def transcode(output_file, options = EncodingOptions.new, transcoder_options = {}, &block)
       Transcoder.new(self, output_file, options, transcoder_options).run(&block)
     end
@@ -208,43 +82,138 @@ module FFMPEG
       Transcoder.new(self, output_file, options.merge(screenshot: true), transcoder_options).run(&block)
     end
 
+    def video_codec
+      @video_stream&.codec_name
+    end
+
+    def pixel_format
+      @video_stream&.pixel_format
+    end
+
+    def colorspace
+      @video_stream&.color_space
+    end
+
+    def width
+      @video_stream&.width
+    end
+
+    def height
+      @video_stream&.height
+    end
+
+    def resolution
+      @video_stream&.resolution
+    end
+
+    def video_bitrate
+      @video_stream&.bitrate
+    end
+
+    def sar
+      @video_stream&.sar
+    end
+
+    def dar
+      @video_stream&.dar
+    end
+
+    def calculated_aspect_ratio
+      @video_stream&.calculated_aspect_ratio
+    end
+
+    def calculated_pixel_aspect_ratio
+      @video_stream&.calculated_pixel_aspect_ratio
+    end
+
+    def frame_rate
+      @video_stream&.frame_rate
+    end
+
+    def rotation
+      @video_stream&.rotation
+    end
+
+    def audio_channels
+      @audio_stream&.channels
+    end
+
+    def audio_codec
+      @audio_stream&.codec_name
+    end
+
+    def audio_sample_rate
+      @audio_stream&.sample_rate
+    end
+
+    def audio_bitrate
+      @audio_stream&.bitrate
+    end
+
+    def audio_tags
+      @audio_stream&.tags
+    end
+
+    def audio_channel_layout
+      @audio_stream&.channel_layout
+    end
+
     protected
 
-    def aspect_from_dar
-      calculate_aspect(dar)
+    def parse_format
+      if @metadata.key?(:error)
+        @duration = 0
+      else
+        @container = @metadata[:format][:format_name]
+        @container_long_name = @metadata[:format][:format_long_name]
+        @size = @metadata[:format][:size].to_i
+        @duration = @metadata[:format][:duration].to_f
+        @time = @metadata[:format][:start_time].to_f
+        @format_tags = @metadata[:format][:tags]
+        @bitrate = @metadata[:format][:bit_rate].to_i
+        @program_count = @metadata[:format][:nb_programs].to_i
+        @stream_count = @metadata[:format][:nb_streams].to_i
+
+        if @format_tags&.key?(:creation_time)
+          begin
+            @creation_time = Time.parse(@format_tags[:creation_time])
+          rescue ArgumentError
+            nil
+          end
+        end
+      end
     end
 
-    def aspect_from_sar
-      calculate_aspect(sar)
+    def parse_video_streams
+      video_streams = streams_for_type('video')
+
+      @video_streams = video_streams.map do |stream|
+        FFMPEG::Metadata::VideoStream.new(stream)
+      end
+
+      @video_stream = @video_streams.find { |s| s.default == true } || @video_streams.first
     end
 
-    def calculate_aspect(ratio)
-      return nil unless ratio
+    def parse_audio_streams
+      audio_streams = streams_for_type('audio')
 
-      w, h = ratio.split(':')
-      return nil if w == '0' || h == '0'
+      @audio_streams = audio_streams.map do |stream|
+        FFMPEG::Metadata::AudioStream.new(stream)
+      end
 
-      @rotation.nil? || (@rotation == 180) ? (w.to_f / h.to_f) : (h.to_f / w.to_f)
+      @audio_stream = @audio_streams.find { |s| s.default == true } || @audio_streams.first
     end
 
-    def aspect_from_dimensions
-      aspect = width.to_f / height.to_f
-      aspect.nan? ? nil : aspect
+    def streams_for_type(type)
+      streams = @metadata[:streams]
+
+      streams.select { |stream| stream.key?(:codec_type) and stream[:codec_type] == type }
     end
 
     def fix_encoding(output)
       output[/test/] # Running a regexp on the string throws error if it's not UTF-8
     rescue ArgumentError
       output.force_encoding('ISO-8859-1')
-    end
-
-    def parse_rotation(video_stream)
-      if video_stream.key?(:tags) && video_stream[:tags].key?(:rotate)
-        video_stream[:tags][:rotate].to_i % 360
-      elsif video_stream.key?(:side_data_list)
-        rotation_data = video_stream[:side_data_list].find { |data| data.key?(:rotation) }
-        rotation_data ? rotation_data[:rotation].to_i % 360 : nil
-      end
     end
 
     def head(location = @path, limit = FFMPEG.max_http_redirect_attempts)
@@ -260,6 +229,7 @@ module FFMPEG
         raise FFMPEG::HTTPTooManyRequests if limit.zero?
 
         new_uri = url + URI(response['Location'])
+        @path = new_uri.to_s
 
         head(new_uri, limit - 1)
       else
@@ -267,6 +237,15 @@ module FFMPEG
       end
     rescue SocketError, Errno::ECONNREFUSED
       nil
+    end
+
+    def capture3(*cmd)
+      Open3.popen3(*cmd, {}) do |_i, o, e|
+        out_reader = Thread.new { o&.read }
+        err_reader = Thread.new { e&.read }
+
+        [out_reader.value || '', err_reader.value || '']
+      end
     end
   end
 end

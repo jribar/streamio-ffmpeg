@@ -11,7 +11,10 @@ require 'ffmpeg/movie'
 require 'ffmpeg/io_monkey'
 require 'ffmpeg/transcoder'
 require 'ffmpeg/encoding_options'
+require 'ffmpeg/metadata/video_stream'
+require 'ffmpeg/metadata/audio_stream'
 
+# FFMPEG is a Ruby library for encoding video files using ffmpeg
 module FFMPEG
   # FFMPEG logs information about its progress when it's transcoding.
   # Jack in your own logger through this method if you wish to.
@@ -99,11 +102,11 @@ module FFMPEG
   def self.which(cmd)
     exts = ENV['PATHEXT'] ? ENV['PATHEXT'].split(';') : ['']
     ENV['PATH'].split(File::PATH_SEPARATOR).each do |path|
-      exts.each { |ext|
+      exts.each do |ext|
         exe = File.join(path, "#{cmd}#{ext}")
         return exe if File.executable? exe
-      }
+      end
     end
-    raise Errno::ENOENT, "the #{cmd} binary could not be found in #{ENV['PATH']}"
+    raise Errno::ENOENT, "the #{cmd} binary could not be found in #{ENV.fetch('PATH', nil)}"
   end
 end
