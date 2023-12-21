@@ -3,7 +3,7 @@
 require_relative 'lib/ffmpeg/version'
 
 Gem::Specification.new do |s|
-  s.name        = 'streamio-ffmpeg'
+  s.name        = 'ffmpeg'
   s.version     = FFMPEG::VERSION
   s.authors     = ['Rackfish AB']
   s.email       = ['support@rackfish.com', 'bikeath1337.com']
