@@ -7,7 +7,7 @@ if RUBY_PLATFORM.match?(/(win|w)(32|64)$/)
   begin
     require 'win32/process'
   rescue LoadError
-    'Warning: streamio-ffmpeg is missing the win32-process gem to properly handle hung transcodings. Install the gem (in Gemfile if using bundler) to avoid errors.'
+    'Warning: ffmpeg is missing the win32-process gem to properly handle hung transcodings. Install the gem (in Gemfile if using bundler) to avoid errors.'
   end
 end
 
