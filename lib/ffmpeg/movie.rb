@@ -11,6 +11,7 @@ module FFMPEG
     attr_reader :path, :duration, :time, :bitrate, :size, :creation_time,
                 :video_streams, :video_stream,
                 :audio_streams, :audio_stream,
+                :programs, :chapters,
                 :container, :container_long_name, :metadata, :format_tags
 
     UNSUPPORTED_CODEC_PATTERN = /^Unsupported codec with id (\d+) for input stream (\d+)$/.freeze
@@ -43,6 +44,7 @@ module FFMPEG
       parse_format
 
       unless @metadata.key?(:error)
+        parse_programs
         parse_video_streams
         parse_audio_streams
       end
@@ -204,6 +206,12 @@ module FFMPEG
       end
 
       @audio_stream = @audio_streams.find { |s| s.default == true } || @audio_streams.first
+    end
+
+    def parse_programs
+      @programs = @metadata[:programs]&.map do |program|
+        FFMPEG::Metadata::Program.new(program)
+      end
     end
 
     def streams_for_type(type)

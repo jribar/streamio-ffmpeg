@@ -463,6 +463,30 @@ module FFMPEG
         end
       end
 
+      context 'given a remote hls playlist' do
+        before(:all) do
+          @movie = Movie.new('https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8')
+        end
+
+        let(:movie) { @movie }
+
+        it 'should identify 5 programs' do
+          expect(movie.programs.length).to eq(5)
+        end
+
+        it 'should set id for each program' do
+          expect(movie.programs.first.id).to eq(0)
+        end
+
+        it 'should set audio stream for each program' do
+          expect(movie.programs.first.audio_stream.codec_name).to eq('aac')
+        end
+
+        it 'should set video stream for each program' do
+          expect(movie.programs.first.video_stream.codec_name).to eq('h264')
+        end
+      end
+
       context 'given a movie file with 2 audio streams' do
         let(:movie) { Movie.new("#{fixture_path}/movies/multi_audio_movie.mp4") }
 

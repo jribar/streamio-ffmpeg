@@ -13,6 +13,7 @@ require 'ffmpeg/transcoder'
 require 'ffmpeg/encoding_options'
 require 'ffmpeg/metadata/video_stream'
 require 'ffmpeg/metadata/audio_stream'
+require 'ffmpeg/metadata/program'
 
 # FFMPEG is a Ruby library for encoding video files using ffmpeg
 module FFMPEG
