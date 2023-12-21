@@ -16,4 +16,5 @@ Gem::Specification.new do |s|
 
   s.add_development_dependency('rspec', '~> 3')
   s.add_development_dependency('rake', '~> 13.1')
+  s.add_development_dependency('webrick', '~> 1.8')
 end
