@@ -11,7 +11,7 @@ module FFMPEG
     attr_reader :path, :duration, :time, :bitrate, :size, :creation_time,
                 :video_streams, :video_stream,
                 :audio_streams, :audio_stream,
-                :programs, :chapters,
+                :programs, :chapters, :program_count, :stream_count,
                 :container, :container_long_name, :metadata, :format_tags
 
     UNSUPPORTED_CODEC_PATTERN = /^Unsupported codec with id (\d+) for input stream (\d+)$/.freeze
