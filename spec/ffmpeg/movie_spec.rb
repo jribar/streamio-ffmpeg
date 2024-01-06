@@ -463,6 +463,23 @@ module FFMPEG
         end
       end
 
+      context 'given an awesome movie file with chapters' do
+        let(:movie) { Movie.new("#{fixture_path}/movies/awesome chaptered movie.mov") }
+
+        it 'has the correct number of chapters' do
+          expect(movie.chapters.count).to eq(6)
+        end
+
+        it 'has the correct chapter titles' do
+          expect(movie.chapters[0].title) .to eq('Start')
+          expect(movie.chapters[1].title) .to eq('Chapter 1')
+          expect(movie.chapters[2].title) .to eq('Chapter 2')
+          expect(movie.chapters[3].title) .to eq('Chapter 3')
+          expect(movie.chapters[4].title) .to eq('Chapter 4')
+          expect(movie.chapters[5].title) .to eq('Another Chapter 5')
+        end
+      end
+
       context 'given a remote hls playlist' do
         before(:all) do
           @movie = Movie.new('https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8')

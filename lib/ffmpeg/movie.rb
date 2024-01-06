@@ -29,7 +29,7 @@ module FFMPEG
       end
 
       # ffmpeg will output to stderr
-      command = [FFMPEG.ffprobe_binary, '-i', @path, '-print_format', 'json', '-show_format', '-show_programs', '-show_streams', '-show_error']
+      command = [FFMPEG.ffprobe_binary, '-i', @path, '-print_format', 'json', '-show_format', '-show_programs', '-show_streams', '-show_chapters', '-show_error']
       std_output, std_error = capture3(*command)
 
       fix_encoding(std_output)
@@ -47,6 +47,7 @@ module FFMPEG
         parse_programs
         parse_video_streams
         parse_audio_streams
+        parse_chapters
       end
 
       unsupported_stream_ids = unsupported_streams(std_error)
@@ -211,6 +212,12 @@ module FFMPEG
     def parse_programs
       @programs = @metadata[:programs]&.map do |program|
         FFMPEG::Metadata::Program.new(program)
+      end
+    end
+
+    def parse_chapters
+      @chapters = @metadata[:chapters]&.map do |chapter|
+        FFMPEG::Metadata::Chapter.new(chapter)
       end
     end
 
